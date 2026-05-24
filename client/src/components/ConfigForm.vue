@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useConfigStore } from '@/stores/configStore'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Save, FileJson, CheckCircle, XCircle, Loader2 } from 'lucide-vue-next'
@@ -7,6 +8,8 @@ import { Save, FileJson, CheckCircle, XCircle, Loader2 } from 'lucide-vue-next'
 const emit = defineEmits<{
   saved: []
 }>()
+
+const configStore = useConfigStore()
 
 const form = ref({
   deepseek_api_key: '',
@@ -24,6 +27,13 @@ const saving = ref(false)
 const result = ref<{ success: boolean; message: string } | null>(null)
 
 async function loadConfig() {
+  // Prefer local storage if available
+  const stored = configStore.config
+  if (stored.deepseek_api_key) {
+    Object.assign(form.value, stored)
+    syncJson()
+    return
+  }
   try {
     const res = await fetch('/api/config')
     const data = await res.json()
@@ -62,6 +72,7 @@ async function save() {
 
     if (res.ok) {
       const data = await res.json()
+      configStore.setConfig(payload)
       result.value = {
         success: true,
         message: data.bitable_id

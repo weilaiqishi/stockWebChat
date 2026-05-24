@@ -3,6 +3,7 @@
 import sys as _sys
 import io as _io
 import json
+import os
 import time
 from pathlib import Path
 
@@ -44,15 +45,17 @@ def get_feishu():
 
 
 def has_config() -> bool:
-    """Check if user has completed setup."""
+    """Check if any persistent config source has an API key."""
+    if os.environ.get("DEEPSEEK_API_KEY", "").strip():
+        return True
     config_path = ROOT / "config.json"
-    if not config_path.exists():
-        return False
-    try:
-        cfg = json.loads(config_path.read_text("utf-8"))
-        return bool(cfg.get("deepseek_api_key"))
-    except Exception:
-        return False
+    if config_path.exists():
+        try:
+            cfg = json.loads(config_path.read_text("utf-8"))
+            return bool(cfg.get("deepseek_api_key"))
+        except Exception:
+            pass
+    return False
 
 
 def normalize_code(code: str) -> str:

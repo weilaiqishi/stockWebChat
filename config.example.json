@@ -1,9 +1,0 @@
-{
-  "deepseek_api_key": "",
-  "deepseek_model": "deepseek-v4-flash",
-  "deepseek_base_url": "https://api.deepseek.com",
-  "zhihu_access_secret": "",
-  "feishu_app_id": "",
-  "feishu_app_secret": "",
-  "feishu_bitable_id": ""
-}

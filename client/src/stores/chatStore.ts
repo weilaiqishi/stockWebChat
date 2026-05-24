@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import { useConfigStore } from './configStore'
 import { genActionId, type ActionName } from '@/utils/actions'
 
 const log = (actionId: string, msg: string, ...args: any[]) => {
@@ -95,6 +96,15 @@ export const useChatStore = defineStore('chat', () => {
     }
     addMessage(assistantMsg)
 
+    const cfg = useConfigStore()
+    const body: Record<string, any> = {
+      message: text,
+      session_id: sessionId.value || undefined,
+      strategy_ids: strategyIds.length > 0 ? strategyIds : undefined,
+      action_id: actionId,
+      ...cfg.getRequestBodyFields(),
+    }
+
     try {
       const response = await fetch('/api/chat/stream', {
         method: 'POST',
@@ -102,12 +112,7 @@ export const useChatStore = defineStore('chat', () => {
           'Content-Type': 'application/json',
           'X-Action-Id': actionId,
         },
-        body: JSON.stringify({
-          message: text,
-          session_id: sessionId.value || undefined,
-          strategy_ids: strategyIds.length > 0 ? strategyIds : undefined,
-          action_id: actionId,
-        }),
+        body: JSON.stringify(body),
       })
 
       if (!response.ok) {
@@ -191,6 +196,7 @@ export const useChatStore = defineStore('chat', () => {
     const actionId = genActionId('chat.summary')
     log(actionId, '→ summarizeConversation')
     if (!sessionId.value) return '没有活跃的对话。'
+    const cfg = useConfigStore()
     try {
       const res = await fetch('/api/chat/summarize', {
         method: 'POST',
@@ -198,7 +204,10 @@ export const useChatStore = defineStore('chat', () => {
           'Content-Type': 'application/json',
           'X-Action-Id': actionId,
         },
-        body: JSON.stringify({ session_id: sessionId.value }),
+        body: JSON.stringify({
+          session_id: sessionId.value,
+          ...cfg.getRequestBodyFields(),
+        }),
       })
       const data = await res.json()
       log(actionId, '← summarize done')
@@ -216,6 +225,7 @@ export const useChatStore = defineStore('chat', () => {
     error.value = ''
     isStreaming.value = true
     try {
+      const cfg = useConfigStore()
       const res = await fetch('/api/chat/deep-analysis', {
         method: 'POST',
         headers: {
@@ -227,6 +237,7 @@ export const useChatStore = defineStore('chat', () => {
           session_id: sessionId.value || undefined,
           strategy_ids: strategyIds.length > 0 ? strategyIds : undefined,
           action_id: actionId,
+          ...cfg.getRequestBodyFields(),
         }),
       })
       if (!res.ok) {

@@ -1,7 +1,7 @@
 # Stage 1: Build frontend
 FROM node:22-alpine AS frontend-builder
 WORKDIR /build/client
-COPY client/package.json client/pnpm-lock.yaml* ./
+COPY client/package.json client/pnpm-lock.yaml* client/.npmrc ./
 RUN corepack enable && pnpm install --no-frozen-lockfile
 COPY client/ ./
 RUN pnpm build
@@ -24,9 +24,6 @@ COPY main.py ./
 
 # Copy built frontend
 COPY --from=frontend-builder /build/client/dist ./client/dist
-
-# Copy config template if no config exists
-COPY config.example.json ./config.example.json
 
 EXPOSE 8000
 CMD ["uv", "run", "uvicorn", "server.app:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -8,7 +8,6 @@
 
 ```bash
 git clone <repo-url> && cd stockWebChat
-cp config.example.json config.json   # 编辑 config.json 填写 DeepSeek API Key
 
 # 安装后端依赖
 uv sync
@@ -16,7 +15,7 @@ uv sync
 # 安装前端依赖并构建
 cd client && pnpm install && pnpm build && cd ..
 
-# 启动
+# 启动（首次访问在浏览器设置 DeepSeek API Key）
 uv run python main.py
 # 访问 http://localhost:8000
 ```
@@ -122,16 +121,18 @@ Render Dashboard → `New +` → `Web Service` → 连接 GitHub 选中 fork 仓
 
 ## 配置说明
 
-首次访问会自动跳转到配置页。可通过 `/settings` 页面或 `config.json` 文件配置。
+配置存储在浏览器 localStorage，首次访问会自动跳转到设置页。
+
+> **部署到 Render 等云平台时**，在环境变量中配置（`DEEPSEEK_API_KEY` 等）。本地开发时也可用环境变量，或通过浏览器 `/settings` 页面填写。
 
 | 配置项 | 说明 |
 | ------ | ---- |
-| `deepseek_api_key` | DeepSeek API Key |
-| `deepseek_model` | 模型名称 (默认 `deepseek-v4-flash`) |
-| `deepseek_base_url` | API 地址 (默认 `https://api.deepseek.com`，可填兼容 OpenAI 接口的第三方地址) |
-| `zhihu_access_secret` | 知乎开放平台 Access Secret，启用知乎搜索 + 全网搜索 |
-| `feishu_app_id` / `feishu_app_secret` | 飞书应用凭证，启用对话持久化 + 策略 CRUD + 报告存储 |
-| `feishu_bitable_id` | 飞书多维表格 ID (留空则首次配置时自动创建) |
+| `DEEPSEEK_API_KEY` | DeepSeek API Key (必填) |
+| `DEEPSEEK_MODEL` | 模型名称 (默认 `deepseek-v4-flash`) |
+| `DEEPSEEK_BASE_URL` | API 地址 (默认 `https://api.deepseek.com`，可填兼容 OpenAI 接口的第三方地址) |
+| `ZHIHU_ACCESS_SECRET` | 知乎开放平台 Access Secret，启用知乎搜索 + 全网搜索 |
+| `FEISHU_APP_ID` / `FEISHU_APP_SECRET` | 飞书应用凭证，启用对话持久化 + 策略 CRUD + 报告存储 |
+| `FEISHU_BITABLE_ID` | 飞书多维表格 ID (留空则首次配置时自动创建) |
 
 ## 功能
 

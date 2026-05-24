@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Zhihu Open Platform search API — zhihu_search + global_search.
 
-Bearer auth: https://developer.zhihu.com/docs?key=authorization
+Supports both file-based token loading and explicit token parameter.
 """
 import time
 from typing import Optional
@@ -14,7 +14,7 @@ _log = get_logger(__name__)
 
 
 def _get_token() -> str:
-    """Load Zhihu access secret from config.json."""
+    """Load Zhihu access secret from config.json (fallback)."""
     import json
     from pathlib import Path
     config_path = Path(__file__).resolve().parents[2] / "config.json"
@@ -25,12 +25,18 @@ def _get_token() -> str:
         return ""
 
 
-def search_zhihu(query: str, count: int = 10) -> Optional[dict]:
+def search_zhihu(query: str, count: int = 10,
+                 token: Optional[str] = None) -> Optional[dict]:
     """Search Zhihu for stock-related content via Open Platform API.
+
+    Args:
+        query: Search keywords.
+        count: Max results (max 10).
+        token: Explicit access token. If not provided, reads from config.json.
 
     Returns decoded response Data dict on success, None on any failure.
     """
-    token = _get_token()
+    token = token or _get_token()
     if not token:
         return None
 
@@ -54,7 +60,8 @@ def search_zhihu(query: str, count: int = 10) -> Optional[dict]:
             _log.error("zhihu_search auth failed")
             return None
         if code != 0:
-            _log.warning("zhihu_search api error query=%s code=%s msg=%s", query, code, data.get('Message', ''))
+            _log.warning("zhihu_search api error query=%s code=%s msg=%s",
+                         query, code, data.get('Message', ''))
             return None
         return data.get("Data", {})
     except httpx.TimeoutException:
@@ -66,12 +73,20 @@ def search_zhihu(query: str, count: int = 10) -> Optional[dict]:
 
 
 def search_global(query: str, count: int = 10,
-                  filter_str: str = "", search_db: str = "all") -> Optional[dict]:
+                  filter_str: str = "", search_db: str = "all",
+                  token: Optional[str] = None) -> Optional[dict]:
     """Search global web via Zhihu Open Platform.
 
-    API: GET https://developer.zhihu.com/api/v1/content/global_search
+    Args:
+        query: Search keywords.
+        count: Max results (max 20).
+        filter_str: Optional filter.
+        search_db: Search database scope.
+        token: Explicit access token. If not provided, reads from config.json.
+
+    Returns decoded response Data dict on success, None on any failure.
     """
-    token = _get_token()
+    token = token or _get_token()
     if not token:
         return None
 

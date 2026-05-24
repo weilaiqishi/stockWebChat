@@ -8,7 +8,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Optional
 
-from ..app import get_tickflow, has_config
+from ..app import get_tickflow
 from ..agent.conversation import ConversationManager
 from ..agent.runner import run_agent_loop
 from ..services.logger import get_logger
@@ -20,15 +20,36 @@ _conversations = ConversationManager()
 _log = get_logger(__name__)
 
 
+def _resolve_config(body) -> dict:
+    """Load config from file/env, then overlay client-provided fields."""
+    from ..config_manager import ConfigManager
+    config = ConfigManager().load()
+    overrides = {}
+    for key in ("deepseek_api_key", "deepseek_model", "deepseek_base_url", "zhihu_access_secret"):
+        val = getattr(body, key, None)
+        if val is not None and val.strip():
+            overrides[key] = val.strip()
+    config.update(overrides)
+    return config
+
+
 class ChatRequest(BaseModel):
     message: str
     session_id: Optional[str] = None
     strategy_ids: Optional[list[str]] = None
     action_id: Optional[str] = None
+    # Client-provided config overrides (from frontend localStorage)
+    deepseek_api_key: Optional[str] = None
+    deepseek_model: Optional[str] = None
+    deepseek_base_url: Optional[str] = None
+    zhihu_access_secret: Optional[str] = None
 
 
 class SummarizeRequest(BaseModel):
     session_id: str
+    deepseek_api_key: Optional[str] = None
+    deepseek_model: Optional[str] = None
+    deepseek_base_url: Optional[str] = None
 
 
 class DeepAnalysisRequest(BaseModel):
@@ -36,16 +57,17 @@ class DeepAnalysisRequest(BaseModel):
     session_id: Optional[str] = None
     strategy_ids: Optional[list[str]] = None
     action_id: Optional[str] = None
+    deepseek_api_key: Optional[str] = None
+    deepseek_model: Optional[str] = None
+    deepseek_base_url: Optional[str] = None
+    zhihu_access_secret: Optional[str] = None
 
 
 @router.post("/stream")
 async def chat_stream(body: ChatRequest):
     """SSE streaming agent chat."""
-    if not has_config():
-        raise HTTPException(status_code=503, detail="请先完成配置")
 
-    from ..config_manager import ConfigManager
-    config = ConfigManager().load()
+    config = _resolve_config(body)
 
     # Resolve session
     session_id = body.session_id
@@ -128,13 +150,9 @@ async def delete_session(session_id: str):
 @router.post("/summarize")
 async def summarize_conversation(body: SummarizeRequest):
     """Generate LLM summary of a conversation."""
-    if not has_config():
-        raise HTTPException(status_code=503, detail="请先完成配置")
-
     _log.info("chat.summary session=%s", body.session_id)
 
-    from ..config_manager import ConfigManager
-    config = ConfigManager().load()
+    config = _resolve_config(body)
 
     start = time.monotonic()
     summary = await _conversations.summarize(
@@ -150,13 +168,9 @@ async def summarize_conversation(body: SummarizeRequest):
 @router.post("/deep-analysis")
 async def deep_analysis(body: DeepAnalysisRequest):
     """Generate a structured deep analysis for a specific stock."""
-    if not has_config():
-        raise HTTPException(status_code=503, detail="请先完成配置")
-
     _log.info("deep.analysis stock=%s session=%s", body.stock_code, body.session_id)
 
-    from ..config_manager import ConfigManager
-    config = ConfigManager().load()
+    config = _resolve_config(body)
 
     messages = _build_system_message(config, body.strategy_ids)
 

@@ -8,7 +8,6 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = ROOT / "config.json"
-EXAMPLE_PATH = ROOT / "config.example.json"
 
 # Environment variable overrides (e.g. Render deployment)
 _ENV_OVERRIDES = {
@@ -43,12 +42,8 @@ class ConfigManager:
                 pass
         return _apply_env_overrides(self._load_example())
 
-    def _load_example(self) -> dict:
-        if EXAMPLE_PATH.exists():
-            try:
-                return json.loads(EXAMPLE_PATH.read_text("utf-8"))
-            except Exception:
-                pass
+    @staticmethod
+    def defaults() -> dict:
         return {
             "deepseek_api_key": "",
             "deepseek_model": "deepseek-v4-flash",
@@ -58,6 +53,9 @@ class ConfigManager:
             "feishu_app_secret": "",
             "feishu_bitable_id": "",
         }
+
+    def _load_example(self) -> dict:
+        return self.defaults()
 
     def save(self, config: dict) -> None:
         """Write config to disk."""

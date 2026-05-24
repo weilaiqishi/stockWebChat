@@ -125,7 +125,7 @@ def _zhihu_search(config: dict, query: str, count: int) -> dict:
     start = time.time()
     try:
         from ..services.zhihu_search import search_zhihu
-        data = search_zhihu(query, min(count, 10))
+        data = search_zhihu(query, min(count, 10), token=token)
         if data is None:
             _log.warning("zhihu_search failed query=%s", query)
             return {"error": "知乎搜索失败（认证/频率限制/超时）", "retriable": False}
@@ -157,7 +157,7 @@ def _global_search(config: dict, query: str, count: int) -> dict:
     start = time.time()
     try:
         from ..services.zhihu_search import search_global
-        data = search_global(query, min(count, 10))
+        data = search_global(query, min(count, 10), token=token)
         if data is None:
             _log.warning("global_search failed query=%s", query)
             return {"error": "全网搜索失败", "retriable": False}
