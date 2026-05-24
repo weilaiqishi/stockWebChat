@@ -2,6 +2,7 @@
 """Configuration management: load, save, validate config.json."""
 import json
 import copy
+import os
 from pathlib import Path
 from typing import Any
 
@@ -9,19 +10,38 @@ ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = ROOT / "config.json"
 EXAMPLE_PATH = ROOT / "config.example.json"
 
+# Environment variable overrides (e.g. Render deployment)
+_ENV_OVERRIDES = {
+    "DEEPSEEK_API_KEY": "deepseek_api_key",
+    "DEEPSEEK_MODEL": "deepseek_model",
+    "DEEPSEEK_BASE_URL": "deepseek_base_url",
+    "ZHIHU_ACCESS_SECRET": "zhihu_access_secret",
+    "FEISHU_APP_ID": "feishu_app_id",
+    "FEISHU_APP_SECRET": "feishu_app_secret",
+    "FEISHU_BITABLE_ID": "feishu_bitable_id",
+}
+
+
+def _apply_env_overrides(config: dict) -> dict:
+    for env_key, cfg_key in _ENV_OVERRIDES.items():
+        val = os.environ.get(env_key)
+        if val is not None and val.strip():
+            config[cfg_key] = val.strip()
+    return config
+
 
 class ConfigManager:
     def __init__(self):
         self._path = CONFIG_PATH
 
     def load(self) -> dict:
-        """Load config, falling back to example template."""
+        """Load config from file (or example), then apply env var overrides."""
         if self._path.exists():
             try:
-                return json.loads(self._path.read_text("utf-8"))
+                return _apply_env_overrides(json.loads(self._path.read_text("utf-8")))
             except Exception:
                 pass
-        return self._load_example()
+        return _apply_env_overrides(self._load_example())
 
     def _load_example(self) -> dict:
         if EXAMPLE_PATH.exists():

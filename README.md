@@ -41,9 +41,84 @@ docker compose up -d
 
 Docker 使用多阶段构建：`node:22-alpine` 构建前端 → `python:3.12-slim` 运行后端。配置通过挂载 `./config.json:/app/config.json` 持久化。
 
-### 方式三：GitHub Actions
+### 方式三：GitHub Actions（自动构建镜像）
 
-Fork 仓库 → Actions 自动构建 Docker 镜像。
+无需本地环境，Fork 后自动构建 Docker 镜像并推送到 GitHub Container Registry，拉取即可运行。
+
+#### 1. Fork 本仓库
+
+点击右上角 `Fork` 按钮。
+
+#### 2. 启用 Actions
+
+`Actions` 标签 → `I understand my workflows, go ahead and enable them`
+
+#### 3. 触发构建
+
+推送代码到 `main` 分支，或进入 `Actions` → `Build Docker Image` → `Run workflow` 手动触发。
+
+构建完成后，Docker 镜像会推送到 `ghcr.io/<你的用户名>/stock-web-chat:latest`。
+
+#### 4. 运行
+
+```bash
+# 拉取并启动
+docker run -d -p 8000:8000 \
+  -v /path/to/config.json:/app/config.json \
+  ghcr.io/<你的用户名>/stock-web-chat:latest
+```
+
+或用 docker compose 部署到服务器：
+
+```yaml
+services:
+  app:
+    image: ghcr.io/<你的用户名>/stock-web-chat:latest
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./config.json:/app/config.json
+    restart: unless-stopped
+```
+
+### 方式四：Render（免费托管，自动获得 URL）
+
+无需服务器，Fork 后部署到 Render 免费版即可获得公网访问地址。
+
+#### 1. 准备工作
+
+- [Fork 本仓库](https://github.com/你的用户名/stockWebChat/fork)
+- 注册 [Render](https://render.com) 账号（GitHub 登录即可）
+
+#### 2. 部署 Web 服务
+
+Render Dashboard → `New +` → `Web Service` → 连接 GitHub 选中 fork 仓库，填写：
+
+| 字段 | 值 |
+| ------ | ---- |
+| Name | `stock-web-chat`（或任意名称） |
+| Region | 选离你最近的（亚洲选 Singapore） |
+| Branch | `main` |
+| Runtime | **Docker**（自动识别） |
+| Plan | **Free** |
+
+#### 3. 配置环境变量
+
+展开 `Advanced` → `Add Environment Variable`，至少添加：
+
+| 变量名 | 值 |
+| ------ | ---- |
+| `DEEPSEEK_API_KEY` | 你的 DeepSeek API Key |
+
+可选：`DEEPSEEK_MODEL`、`DEEPSEEK_BASE_URL`、`ZHIHU_ACCESS_SECRET`、`FEISHU_APP_ID`、`FEISHU_APP_SECRET`、`FEISHU_BITABLE_ID`
+
+#### 4. 创建
+
+点击 `Create Web Service`，等待约 3-5 分钟构建部署完成。
+
+部署成功后 Render 会自动分配 URL（如 `https://stock-web-chat.onrender.com`），打开即可使用。
+
+> **注意**：Render 免费版 15 分钟无访问会自动休眠，唤醒需 30-60 秒冷启动。后续访问恢复正常速度。
 
 ## 配置说明
 
