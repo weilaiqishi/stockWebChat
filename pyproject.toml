@@ -1,0 +1,17 @@
+[project]
+name = "stock-web-chat"
+version = "0.1.0"
+description = "AI Agent 策略问股 — 多轮对话股票分析系统"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.34.0",
+    "httpx>=0.28.0",
+    "tickflow[pandas]>=0.1.21",
+    "lark-oapi>=1.4.0",
+    "tzdata>=2025.2",
+]
+
+[dependency-groups]
+dev = [
+]
