@@ -2,6 +2,10 @@
 
 基于 AI Agent 的多轮对话股票分析系统。支持自动调用知乎搜索、全网搜索、K线行情等工具，在回答中渲染走势图。
 
+<p align="center">
+  <img src="docs/preview.png" alt="Stock Web Chat 预览" width="720">
+</p>
+
 ## 快速开始
 
 ### 方式一：本地运行
