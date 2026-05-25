@@ -23,12 +23,12 @@ function renderMarkdown(text: string): string {
 <template>
   <div :class="['flex gap-3 mb-4', role === 'user' ? 'justify-end' : 'justify-start']">
     <!-- User message -->
-    <div v-if="role === 'user'" class="max-w-[80%] bg-primary text-primary-foreground rounded-lg px-4 py-2.5">
+    <div v-if="role === 'user'" class="max-w-[90%] sm:max-w-[80%] bg-primary text-primary-foreground rounded-lg px-3 sm:px-4 py-2.5">
       <p class="text-sm whitespace-pre-wrap">{{ content }}</p>
     </div>
 
     <!-- Assistant message -->
-    <div v-else class="max-w-[85%]">
+    <div v-else class="max-w-[95%] sm:max-w-[85%]">
       <!-- Thinking steps -->
       <div v-if="thinkingSteps && thinkingSteps.length > 0" class="mb-2">
         <button

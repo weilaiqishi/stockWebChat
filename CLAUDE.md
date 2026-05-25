@@ -16,10 +16,10 @@ AI Agent 多轮对话股票分析系统。用户通过自然语言问股，Agent
 ```bash
 # Backend
 uv sync                          # install dependencies
-uv run python main.py            # start dev server on :8000 (API + SPA)
+uv run python main.py            # start dev server on :8978 (API + SPA)
 
 # Frontend (hot-reload dev mode)
-cd client && pnpm dev            # :5173, proxies /api → :8000
+cd client && pnpm dev            # :5173, proxies /api → :8978
 
 # Build
 cd client && pnpm build          # outputs to client/dist/

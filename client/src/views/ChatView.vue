@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, nextTick, watch, onMounted } from 'vue'
-import { Send, Loader2, FileText, Search, Sparkles } from 'lucide-vue-next'
+import { Send, Loader2, FileText, Search, Sparkles, Menu } from 'lucide-vue-next'
 import { useChatStore } from '@/stores/chatStore'
 import { genActionId } from '@/utils/actions'
 import { Button } from '@/components/ui/button'
@@ -15,6 +15,7 @@ const chatStore = useChatStore()
 const inputText = ref('')
 const messagesEl = ref<HTMLElement | null>(null)
 const strategyIds = ref<string[]>([])
+const mobileSidebarOpen = ref(false)
 
 // Modal state
 const showSummary = ref(false)
@@ -88,23 +89,44 @@ function handleKeydown(e: KeyboardEvent) {
 </script>
 
 <template>
-  <div class="flex-1 flex h-[calc(100vh-3.5rem)]">
-    <!-- Sidebar -->
-    <SessionSidebar @select="chatStore.loadSessions()" />
+  <div class="flex-1 flex min-h-0">
+    <!-- Desktop sidebar -->
+    <div class="hidden sm:flex">
+      <SessionSidebar @select="chatStore.loadSessions()" />
+    </div>
+
+    <!-- Mobile sidebar overlay -->
+    <Teleport to="body">
+      <Transition name="slide">
+        <div v-if="mobileSidebarOpen" class="fixed inset-0 z-40 sm:hidden">
+          <div class="absolute inset-0 bg-black/50" @click="mobileSidebarOpen = false"></div>
+          <div class="relative w-64 h-full bg-white shadow-xl">
+            <SessionSidebar @select="mobileSidebarOpen = false; chatStore.loadSessions()" />
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
 
     <!-- Chat area -->
     <div class="flex-1 flex flex-col min-w-0">
       <!-- Action bar -->
-      <div class="px-4 py-2 border-b bg-white flex items-center gap-2 flex-shrink-0">
-        <Button variant="outline" size="sm" @click="showSummary = true; handleSummarize()">
-          <FileText class="w-3.5 h-3.5 mr-1" />
-          总结对话
+      <div class="px-2 sm:px-4 py-2 border-b bg-white flex items-center gap-1 sm:gap-2 flex-shrink-0 overflow-x-auto">
+        <button
+          class="sm:hidden p-2 rounded-md hover:bg-gray-100 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center flex-shrink-0"
+          @click="mobileSidebarOpen = true"
+          title="会话列表"
+        >
+          <Menu class="w-5 h-5 text-gray-600" />
+        </button>
+        <Button variant="outline" size="sm" class="flex-shrink-0" @click="showSummary = true; handleSummarize()">
+          <FileText class="w-3.5 h-3.5 sm:mr-1" />
+          <span class="hidden sm:inline">总结对话</span>
         </Button>
-        <Button variant="outline" size="sm" @click="showDeepAnalysis = true">
-          <Search class="w-3.5 h-3.5 mr-1" />
-          深度分析
+        <Button variant="outline" size="sm" class="flex-shrink-0" @click="showDeepAnalysis = true">
+          <Search class="w-3.5 h-3.5 sm:mr-1" />
+          <span class="hidden sm:inline">深度分析</span>
         </Button>
-        <div class="flex-1"></div>
+        <div class="flex-1 min-w-0"></div>
         <!-- Strategy selector -->
         <StrategyEditor @change="(ids) => strategyIds = ids" />
       </div>
@@ -113,7 +135,7 @@ function handleKeydown(e: KeyboardEvent) {
 
         <div ref="messagesEl" class="messages-panel">
           <div v-if="chatStore.messages.length === 0" class="flex items-center justify-center h-full">
-            <div class="text-center text-gray-400">
+            <div class="text-center text-gray-400 px-4">
               <Sparkles class="w-10 h-10 mx-auto mb-3 text-gray-300" />
               <p class="text-lg font-medium mb-1">Agent 策略问股</p>
               <p class="text-sm">输入股票代码或问题开始多轮对话分析</p>
@@ -138,11 +160,11 @@ function handleKeydown(e: KeyboardEvent) {
         </div>
 
       <!-- Input -->
-      <div class="px-4 py-3 border-t bg-white flex-shrink-0">
+      <div class="px-3 sm:px-4 py-3 border-t bg-white flex-shrink-0" style="padding-bottom: calc(env(safe-area-inset-bottom) + 0.75rem)">
         <div class="flex gap-2">
           <textarea v-model="inputText"
             class="flex-1 border rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
-            rows="2" placeholder="输入股票代码或问题，如: 分析招商银行最近的走势..." :disabled="chatStore.isStreaming"
+            rows="2" placeholder="输入股票代码或问题..." :disabled="chatStore.isStreaming"
             @keydown="handleKeydown"></textarea>
           <Button class="self-end" :disabled="!inputText.trim() || chatStore.isStreaming" @click="handleSend">
             <Loader2 v-if="chatStore.isStreaming" class="w-4 h-4 animate-spin" />
@@ -216,5 +238,14 @@ function handleKeydown(e: KeyboardEvent) {
 }
 .messages-panel > * + * {
   margin-top: 0.5rem;
+}
+
+.slide-enter-active,
+.slide-leave-active {
+  transition: opacity 0.15s ease;
+}
+.slide-enter-from,
+.slide-leave-to {
+  opacity: 0;
 }
 </style>

@@ -21,7 +21,7 @@ cd client && pnpm install && pnpm build && cd ..
 
 # 启动（首次访问在浏览器设置 DeepSeek API Key）
 uv run python main.py
-# 访问 http://localhost:8000
+# 访问 http://localhost:8978
 ```
 
 开发模式（前后端分离）:
@@ -32,14 +32,14 @@ uv run python main.py
 
 # 终端 2: 前端 (Vite 热重载)
 cd client && pnpm dev
-# 访问 http://localhost:5173，自动代理 /api → :8000
+# 访问 http://localhost:5173，自动代理 /api → :8978
 ```
 
 ### 方式二：Docker
 
 ```bash
 docker compose up -d
-# 访问 http://localhost:8000
+# 访问 http://localhost:8978
 ```
 
 Docker 使用多阶段构建：`node:22-alpine` 构建前端 → `python:3.12-slim` 运行后端。配置通过挂载 `./config.json:/app/config.json` 持久化。
@@ -66,7 +66,7 @@ Docker 使用多阶段构建：`node:22-alpine` 构建前端 → `python:3.12-sl
 
 ```bash
 # 拉取并启动
-docker run -d -p 8000:8000 \
+docker run -d -p 8000:8978 \
   -v /path/to/config.json:/app/config.json \
   ghcr.io/<你的用户名>/stock-web-chat:latest
 ```
@@ -78,7 +78,7 @@ services:
   app:
     image: ghcr.io/<你的用户名>/stock-web-chat:latest
     ports:
-      - "8000:8000"
+      - "8000:8978"
     volumes:
       - ./config.json:/app/config.json
     restart: unless-stopped

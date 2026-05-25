@@ -20,17 +20,17 @@ watch(() => configStore.isReady, (ready) => {
 </script>
 
 <template>
-  <div class="h-screen bg-gray-50 flex flex-col">
+  <div class="h-dvh bg-gray-50 flex flex-col">
     <!-- Header -->
-    <header class="bg-white border-b sticky top-0 z-50">
-      <div class="container mx-auto px-4 h-14 flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <MessageSquare class="w-5 h-5 text-primary" />
-          <h1 class="text-lg font-bold">Agent 策略问股</h1>
+    <header class="bg-white border-b sticky top-0 z-50" style="padding-top: env(safe-area-inset-top)">
+      <div class="container mx-auto px-3 sm:px-4 h-12 sm:h-14 flex items-center justify-between">
+        <div class="flex items-center gap-1.5 sm:gap-2 min-w-0">
+          <MessageSquare class="w-5 h-5 text-primary shrink-0" />
+          <h1 class="text-sm sm:text-lg font-bold truncate">Agent 策略问股</h1>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 shrink-0">
           <button
-            class="p-2 rounded-md hover:bg-gray-100 transition-colors"
+            class="p-2.5 rounded-md hover:bg-gray-100 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
             :class="{ 'bg-blue-50 text-primary': route.path === '/settings' }"
             @click="router.push('/settings')"
             title="系统配置"
@@ -48,7 +48,7 @@ watch(() => configStore.isReady, (ready) => {
     </div>
 
     <!-- Main Content -->
-    <main v-else class="flex-1 flex flex-col">
+    <main v-else class="flex-1 flex flex-col overflow-hidden" style="padding-bottom: env(safe-area-inset-bottom)">
       <router-view />
     </main>
   </div>

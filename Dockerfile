@@ -25,5 +25,5 @@ COPY main.py ./
 # Copy built frontend
 COPY --from=frontend-builder /build/client/dist ./client/dist
 
-EXPOSE 8000
-CMD ["uv", "run", "uvicorn", "server.app:app", "--host", "0.0.0.0", "--port", "8000"]
+EXPOSE 8978
+CMD ["uv", "run", "uvicorn", "server.app:app", "--host", "0.0.0.0", "--port", "8978"]

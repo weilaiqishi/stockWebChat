@@ -2,7 +2,7 @@ services:
   app:
     build: .
     ports:
-      - "8000:8000"
+      - "8978:8978"
     volumes:
       - ./config.json:/app/config.json
     restart: unless-stopped
