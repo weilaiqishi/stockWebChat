@@ -109,6 +109,45 @@ def _make_tools(tickflow, config: dict) -> list[dict]:
         "display_name": "获取标的信息",
     })
 
+    # ---- get_market_indices ----
+    tools.append({
+        "type": "function",
+        "function": {
+            "name": "get_market_indices",
+            "description": "获取主要市场指数最新行情，包括A股（上证、深证、创业板、沪深300）、港股（恒生）、美股（标普500、纳斯达克）的主要指数数据。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "exchange": {
+                        "type": "string",
+                        "enum": ["A", "HK", "US"],
+                        "description": "市场筛选: A=沪深, HK=港股, US=美股。不传则返回全部市场指数。",
+                    },
+                },
+            },
+        },
+        "handler": lambda args: _get_market_indices(tickflow, args.get("exchange")),
+        "display_name": "获取大盘指数",
+    })
+
+    # ---- get_sector_rankings ----
+    tools.append({
+        "type": "function",
+        "function": {
+            "name": "get_sector_rankings",
+            "description": "获取A股行业板块涨跌幅排名。默认返回涨幅前10名，可指定排序方式和返回条数。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "top_n": {"type": "integer", "description": "返回条数，默认10，最大30"},
+                    "order": {"type": "string", "enum": ["desc", "asc"], "description": "排序: desc=涨幅降序(默认), asc=涨幅升序"},
+                },
+            },
+        },
+        "handler": lambda args: _get_sector_rankings(tickflow, args.get("top_n", 10), args.get("order", "desc")),
+        "display_name": "行业板块排名",
+    })
+
     return tools
 
 
@@ -281,3 +320,99 @@ def _get_instrument(tf, symbol: str) -> dict:
     except Exception as e:
         _log.error("get_instrument_info exception symbol=%s %s", symbol, e)
         return {"error": f"获取标的信息失败: {e}", "retriable": True}
+
+
+# ---------------------------------------------------------------------------
+# Market indices
+# ---------------------------------------------------------------------------
+
+INDEX_MAP = {
+    "000001.SH": ("上证指数", "A"),
+    "399001.SZ": ("深证成指", "A"),
+    "399006.SZ": ("创业板指", "A"),
+    "000300.SH": ("沪深300", "A"),
+    "000688.SH": ("科创50", "A"),
+    "HSI": ("恒生指数", "HK"),
+    "HSCEI": ("恒生国企指数", "HK"),
+    "HSTECH": ("恒生科技指数", "HK"),
+    "SPX": ("标普500", "US"),
+    "IXIC": ("纳斯达克", "US"),
+    "DJI": ("道琼斯", "US"),
+}
+
+
+def _get_market_indices(tf, exchange: str | None = None) -> dict:
+    """Get latest quotes for major market indices."""
+    _log.info("get_market_indices exchange=%s", exchange or "all")
+    start = time.time()
+    results = []
+    for symbol, (name, market) in INDEX_MAP.items():
+        if exchange and market != exchange:
+            continue
+        try:
+            info = tf.instruments.batch(symbols=[symbol])
+            display_name = info[0].get("name", name) if info else name
+            df = tf.klines.get(symbol, period="1d", count=2, as_dataframe=True)
+            if not df.empty:
+                row = df.iloc[-1]
+                prev = df.iloc[-2] if len(df) >= 2 else row
+                change_pct = float((row["close"] - prev["close"]) / prev["close"] * 100) if prev["close"] != 0 else 0
+                results.append({
+                    "symbol": symbol,
+                    "name": display_name,
+                    "price": float(row["close"]),
+                    "change_pct": round(change_pct, 2),
+                    "exchange": market,
+                })
+            else:
+                results.append({"symbol": symbol, "name": display_name, "price": None, "change_pct": None, "exchange": market})
+        except Exception as e:
+            _log.debug("get_market_indices skip %s: %s", symbol, e)
+            results.append({"symbol": symbol, "name": name, "price": None, "change_pct": None, "exchange": market, "note": str(e)[:60]})
+
+    elapsed = time.time() - start
+    _log.info("get_market_indices done indices=%d %.3fs", len(results), elapsed)
+    return {"indices": results, "count": len(results)}
+
+
+# ---------------------------------------------------------------------------
+# Sector rankings
+# ---------------------------------------------------------------------------
+
+def _get_sector_rankings(tf, top_n: int = 10, order: str = "desc") -> dict:
+    """Get A-share industry sector rankings.
+
+    Uses akshare as data source (tickflow sector API TBD).
+    """
+    top_n = max(1, min(int(top_n), 30))
+    order = order if order in ("desc", "asc") else "desc"
+    _log.info("get_sector_rankings top_n=%d order=%s", top_n, order)
+    start = time.time()
+    try:
+        import akshare as ak
+        df = ak.stock_board_industry_name_em()
+        if df.empty:
+            return {"error": "板块数据为空", "retriable": False}
+        change_col = "涨跌幅"
+        if change_col not in df.columns:
+            # Try to find the change column
+            candidates = [c for c in df.columns if "幅" in c or "change" in c.lower()]
+            if candidates:
+                change_col = candidates[0]
+            else:
+                return {"error": f"无法识别板块涨跌幅列，可用列: {list(df.columns)}", "retriable": False}
+        sorted_df = df.sort_values(change_col, ascending=(order == "asc"))
+        results = []
+        for _, row in sorted_df.head(top_n).iterrows():
+            results.append({
+                "sector_name": str(row.get("板块名称", row.get("name", ""))),
+                "change_pct": round(float(row.get(change_col, 0)), 2),
+            })
+        elapsed = time.time() - start
+        _log.info("get_sector_rankings done sectors=%d %.3fs", len(results), elapsed)
+        return {"sectors": results, "count": len(results)}
+    except ImportError:
+        return {"error": "板块数据需要安装 akshare: pip install akshare", "retriable": False}
+    except Exception as e:
+        _log.error("get_sector_rankings exception: %s", e)
+        return {"error": f"获取板块排名失败: {e}", "retriable": True}

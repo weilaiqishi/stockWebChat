@@ -69,7 +69,7 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
-  async function sendMessage(text: string, strategyIds: string[] = []) {
+  async function sendMessage(text: string, strategyIds: string[] = [], analysisDimensions: string[] = []) {
     const actionId = genActionId('chat.send')
     log(actionId, '→ sendMessage', text.slice(0, 60))
 
@@ -101,6 +101,7 @@ export const useChatStore = defineStore('chat', () => {
       message: text,
       session_id: sessionId.value || undefined,
       strategy_ids: strategyIds.length > 0 ? strategyIds : undefined,
+      analysis_dimensions: analysisDimensions.length > 0 ? analysisDimensions : undefined,
       action_id: actionId,
       ...cfg.getRequestBodyFields(),
     }

@@ -8,6 +8,7 @@ import ChatMessage from '@/components/ChatMessage.vue'
 import StockChart from '@/components/StockChart.vue'
 import SessionSidebar from '@/components/SessionSidebar.vue'
 import StrategyEditor from '@/components/StrategyEditor.vue'
+import AnalysisChips from '@/components/AnalysisChips.vue'
 
 const log = console.log
 
@@ -15,6 +16,7 @@ const chatStore = useChatStore()
 const inputText = ref('')
 const messagesEl = ref<HTMLElement | null>(null)
 const strategyIds = ref<string[]>([])
+const analysisDimensions = ref<string[]>([])
 const mobileSidebarOpen = ref(false)
 
 // Modal state
@@ -47,7 +49,7 @@ async function handleSend() {
   const text = inputText.value.trim()
   if (!text || chatStore.isStreaming) return
   inputText.value = ''
-  await chatStore.sendMessage(text, strategyIds.value)
+  await chatStore.sendMessage(text, strategyIds.value, analysisDimensions.value)
   await nextTick()
   scrollToBottom()
 }
@@ -161,6 +163,9 @@ function handleKeydown(e: KeyboardEvent) {
 
       <!-- Input -->
       <div class="px-3 sm:px-4 py-3 border-t bg-white flex-shrink-0" style="padding-bottom: calc(env(safe-area-inset-bottom) + 0.75rem)">
+        <div class="mb-2">
+          <AnalysisChips @change="(ids) => analysisDimensions = ids" />
+        </div>
         <div class="flex gap-2">
           <textarea v-model="inputText"
             class="flex-1 border rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"

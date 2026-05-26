@@ -37,6 +37,7 @@ class ChatRequest(BaseModel):
     message: str
     session_id: Optional[str] = None
     strategy_ids: Optional[list[str]] = None
+    analysis_dimensions: Optional[list[str]] = None
     action_id: Optional[str] = None
     # Client-provided config overrides (from frontend localStorage)
     deepseek_api_key: Optional[str] = None
@@ -78,7 +79,10 @@ async def chat_stream(body: ChatRequest):
     _log.info("chat.stream session=%s message=%.60s", session_id, body.message)
 
     # Build messages list
-    messages = _build_system_message(config, body.strategy_ids)
+    messages = _build_system_message(config, body.strategy_ids, body.analysis_dimensions)
+
+    # Lightweight routing: no dimensions / no strategy → try one-round LLM check
+    is_lightweight = not body.analysis_dimensions and not body.strategy_ids
 
     # Add conversation history
     history = _conversations.get_history(session_id)
@@ -91,6 +95,36 @@ async def chat_stream(body: ChatRequest):
 
     tf = get_tickflow()
 
+    # --- Lightweight routing: one-round check when no context chips / strategy ---
+    if is_lightweight:
+        from ..agent.client_ext import LLMClient
+        from ..agent.tools import _make_tools as _build_tools
+        light_client = LLMClient(
+            api_key=config["deepseek_api_key"],
+            model=config.get("deepseek_model", "deepseek-v4-flash"),
+            base_url=config.get("deepseek_base_url", "https://api.deepseek.com"),
+        )
+        all_tools = _build_tools(tf, config)
+        light_tools = [t for t in all_tools if t["function"]["name"] in ("get_realtime_quote", "get_klines")]
+        light_schemas = [{"type": t["type"], "function": t["function"]} for t in light_tools]
+        try:
+            response = await light_client.chat_with_tools(messages, light_schemas)
+            msg = response.get("choices", [{}])[0].get("message", {})
+            if not msg.get("tool_calls"):
+                content = msg.get("content", "")
+                _conversations.add_message(session_id, "assistant", content)
+
+                async def _lightweight_gen():
+                    yield f"data: {json.dumps({'type': 'thinking', 'message': '正在思考...'}, ensure_ascii=False)}\n\n"
+                    yield f"data: {json.dumps({'type': 'content_delta', 'text': content}, ensure_ascii=False)}\n\n"
+                    yield f"data: {json.dumps({'type': 'done', 'content': content, 'chart_specs': [], 'steps': 0, 'session_id': session_id}, ensure_ascii=False)}\n\n"
+
+                _log.info("chat.stream lightweight session=%s direct reply", session_id)
+                return StreamingResponse(_lightweight_gen(), media_type="text/event-stream")
+        except Exception as e:
+            _log.warning("lightweight check failed, fallback to full loop: %s", e)
+        _log.info("chat.stream lightweight session=%s needs tools, fallback to full loop", session_id)
+
     queue: asyncio.Queue = asyncio.Queue()
 
     async def _run():
@@ -100,6 +134,7 @@ async def chat_stream(body: ChatRequest):
                 config=config,
                 tickflow=tf,
                 progress_callback=queue.put,
+                strategy_ids=body.strategy_ids,
             )
             await queue.put(result)
         except Exception as e:
@@ -222,6 +257,7 @@ async def deep_analysis(body: DeepAnalysisRequest):
         tickflow=tf,
         max_steps=8,
         max_wall_clock=180.0,
+        strategy_ids=body.strategy_ids,
     )
     _log.info("deep.analysis done stock=%s steps=%d charts=%d %.3fs",
               body.stock_code, result.get("steps", 0), len(result.get("chart_specs", [])),
@@ -234,8 +270,9 @@ async def deep_analysis(body: DeepAnalysisRequest):
     }
 
 
-def _build_system_message(config: dict, strategy_ids: Optional[list[str]] = None) -> list[dict]:
-    """Build the system prompt with optional strategy injection."""
+def _build_system_message(config: dict, strategy_ids: Optional[list[str]] = None,
+                           analysis_dimensions: Optional[list[str]] = None) -> list[dict]:
+    """Build the system prompt with optional strategy injection and analysis dimensions."""
     system_text = """你是一个专业的股票分析助手。你可以使用以下工具：
 - search_zhihu: 搜索知乎上的股票相关内容
 - search_global: 搜索全网新闻和资讯
@@ -259,6 +296,20 @@ def _build_system_message(config: dict, strategy_ids: Optional[list[str]] = None
 ```
 可用周期: 日K=1d, 周K=1w, 月K=1M, 年K=1Y。不指定周期则默认日K。
 """
+
+    # Inject analysis dimension context
+    if analysis_dimensions:
+        dimension_hints = {
+            "quote": "- 用户关注实时行情数据，请优先调用 get_realtime_quote 获取最新报价和涨跌幅。",
+            "news": "- 用户关注消息面，请主动调用 search_zhihu 和 search_global 搜索相关新闻和舆论。",
+            "technical": "- 用户关注技术分析，请务必先调用 get_klines 获取K线数据，基于实际数据做均线/形态/指标分析。",
+            "sector": "- 用户关注板块效应，请说明该标的所属行业及板块整体表现，分析板块联动效应。",
+        }
+        dim_context = "\n".join(
+            hint for dim_id, hint in dimension_hints.items() if dim_id in analysis_dimensions
+        )
+        if dim_context:
+            system_text += "\n\n---\n\n本次分析侧重方向：\n" + dim_context
 
     # Inject strategy instructions if selected
     if strategy_ids:

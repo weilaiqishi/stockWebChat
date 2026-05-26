@@ -23,6 +23,7 @@ async def run_agent_loop(
     max_steps: int = 10,
     max_wall_clock: float = 120.0,
     progress_callback: Optional[Callable] = None,
+    strategy_ids: Optional[list[str]] = None,
 ) -> dict:
     """Run the ReAct agent loop.
 
@@ -45,6 +46,13 @@ async def run_agent_loop(
     )
 
     tools = _make_tools(tickflow, config)
+
+    # Append strategy-specific tools if strategy_ids provided
+    if strategy_ids:
+        from .strategy_tools import get_strategy_tools
+        strategy_tools = get_strategy_tools(tickflow, strategy_ids)
+        tools.extend(strategy_tools)
+
     tool_defs = [t for t in tools]  # keep metadata for handler lookup
     tool_schemas = [{"type": t["type"], "function": t["function"]} for t in tools]
     tool_map = {t["function"]["name"]: t for t in tools}
@@ -204,6 +212,21 @@ def _build_tool_summary(tool_name: str, result: dict) -> str:
         return f"{result.get('name', '')} {result.get('price', 'N/A')} ({result.get('change_pct', 0):+.2f}%)"
     if tool_name == "get_instrument_info":
         return f"{result.get('name', '')} ({result.get('type', '')})"
+    if tool_name == "get_market_indices":
+        return f"{result.get('count', 0)} 个指数"
+    if tool_name == "get_sector_rankings":
+        return f"{result.get('count', 0)} 个板块"
+    # Strategy tool summaries
+    if tool_name == "check_volume_breakout":
+        return f"信号: {result.get('signal', '?')} 量比: {result.get('volume_ratio_vs_5d_avg', '?')}"
+    if tool_name == "check_ma_cross":
+        return f"均线: {result.get('cross_signal', '?')} {result.get('judgment', '')[:20]}"
+    if tool_name == "check_shrink_pullback":
+        return f"信号: {result.get('signal', '?')} 回撤: {result.get('pullback_from_high_pct', '?')}%"
+    if tool_name == "check_bottom_volume":
+        return f"信号: {result.get('signal', '?')} 量比: {result.get('volume_ratio_vs_5d', '?')}"
+    if tool_name == "check_chan_structure":
+        return f"状态: {result.get('current_status', '?')} 中枢: {result.get('centers_found', 0)}"
     return "完成"
 
 
